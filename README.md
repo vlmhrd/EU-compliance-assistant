@@ -432,6 +432,274 @@ curl http://localhost:8000/v1/stats \
 - Use LangChain memory classes
 - Add tracing decorators for observability
 
+## 🛡️ Guardrails
+
+The application includes AWS Bedrock Guardrails for content safety and policy compliance.
+
+### Configuration
+
+Add to your `.env` file:
+```bash
+BEDROCK_GUARDRAIL_ID=your_guardrail_id_here
+BEDROCK_GUARDRAIL_VERSION=DRAFT  # or specific version number
+```
+
+### How It Works
+
+1. **Content Filtering**: All LLM responses pass through guardrails before being sent to users
+2. **Policy Enforcement**: Blocks content that violates configured policies
+3. **Graceful Handling**: Returns appropriate messages when content is blocked
+4. **Optional**: If no guardrail ID is configured, responses are returned as-is
+
+### Guardrail Features
+
+```python
+# Automatically applied in orchestrator.py and streaming.py
+from app.core.guardrails import apply_guardrails
+
+safe_response = apply_guardrails(
+    answer=llm_response,
+    user_input=user_query,
+    request_id=request_id,
+    user_id=user_id
+)
+```
+
+### Health Check
+
+```bash
+# Check guardrail status
+curl http://localhost:8000/v1/guardrails/health \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### What Gets Filtered
+
+Based on your guardrail configuration in AWS Bedrock:
+- Harmful content
+- PII (Personally Identifiable Information)
+- Profanity and offensive language
+- Off-topic responses
+- Custom denied topics
+
+## 🚨 Error Handling
+
+Comprehensive error handling throughout the application with proper logging and user feedback.
+
+### Error Types
+
+#### 1. **HTTP Exceptions** (400-599)
+```python
+# Custom error classes
+class ValidationError(Exception): pass
+class AuthenticationError(Exception): pass
+class KnowledgeBaseError(Exception): pass
+class RateLimitError(Exception): pass
+```
+
+#### 2. **Request Validation Errors**
+Automatic validation using Pydantic models with detailed error messages:
+```json
+{
+  "error": {
+    "message": "Validation error",
+    "type": "validation_error",
+    "details": [...],
+    "request_id": "abc-123"
+  }
+}
+```
+
+#### 3. **LLM/Bedrock Errors**
+- Model invocation failures
+- Timeout errors
+- Rate limiting
+- Invalid model parameters
+
+#### 4. **Knowledge Base Errors**
+- KB not found
+- Retrieval failures
+- Parsing errors
+
+### Error Response Format
+
+All errors return consistent JSON format:
+```json
+{
+  "error": {
+    "message": "Human-readable error message",
+    "type": "error_type",
+    "status_code": 500,
+    "request_id": "unique-request-id"
+  }
+}
+```
+
+### Request Logging
+
+Every request is tracked with:
+- Unique `request_id`
+- User identification
+- Start/end timestamps
+- Duration
+- Status code
+- Query parameters
+
+Example log output:
+```
+2025-01-15 10:30:45 | INFO | request_id=abc123 user_id=admin | 
+  Request started: POST /v1/chat
+2025-01-15 10:30:47 | INFO | request_id=abc123 user_id=admin | 
+  Request completed: POST /v1/chat | duration=2.1s | status=200
+```
+
+### Frontend Error Handling
+
+The frontend gracefully handles:
+- **401 Unauthorized**: Auto-logout and redirect to login
+- **403 Forbidden**: Permission denied notification
+- **500 Server Error**: "Technical difficulties" message
+- **Network Errors**: Connection failure notifications
+- **Timeout Errors**: Retry suggestions
+
+### Debugging Errors
+
+1. **Check request_id** in error response
+2. **Search logs** for that request_id:
+   ```bash
+   grep "abc123" logs/app.log
+   ```
+3. **View in LangSmith** for detailed trace of what failed
+4. **Check error context** in logged JSON
+
+## 💾 Data Storage in S3
+
+The application includes utilities for storing documents in AWS S3 for the Knowledge Base.
+
+### S3 Configuration
+
+Add to your `.env` file:
+```bash
+S3_BUCKET_NAME=your-bucket-name
+S3_PREFIX=documents/
+PDF_FOLDER_PATH=./pdfs
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+```
+
+### PDF Ingestion Script
+
+Use the included `pdf_ingest.py` script to upload documents to S3:
+
+```bash
+cd backend
+python pdf_ingest.py
+```
+
+### How It Works
+
+1. **Document Preparation**
+   - Place PDF files in the configured folder (default: `./pdfs`)
+   - Script validates file existence and format
+
+2. **Upload Process**
+   ```python
+   # The script automatically:
+   - Connects to S3 using credentials
+   - Scans for PDF files
+   - Uploads with proper metadata
+   - Tracks success/failure
+   ```
+
+3. **Metadata Tracking**
+   Each uploaded file includes:
+   - Original filename
+   - Upload timestamp
+   - Content type (application/pdf)
+
+4. **Knowledge Base Sync**
+   - After upload, AWS Bedrock KB automatically indexes new documents
+   - Sync can take 5-30 minutes depending on document size
+   - Monitor sync status in AWS Bedrock console
+
+### Manual Upload Alternative
+
+You can also upload directly via AWS CLI:
+
+```bash
+aws s3 cp ./pdfs/document.pdf \
+  s3://your-bucket-name/documents/document.pdf \
+  --content-type application/pdf
+```
+
+### S3 Bucket Structure
+
+```
+your-bucket-name/
+└── documents/              # Configured by S3_PREFIX
+    ├── gdpr-guide.pdf
+    ├── csrd-requirements.pdf
+    ├── eu-taxonomy.pdf
+    └── ...
+```
+
+### Best Practices
+
+1. **Organize Documents**
+   - Use clear, descriptive filenames
+   - Consider subfolders for different regulation types
+   - Keep original source documentation
+
+2. **Security**
+   - Use IAM roles with minimum required permissions
+   - Enable S3 bucket encryption
+   - Configure bucket policies appropriately
+   - Never commit AWS credentials to Git
+
+3. **Monitoring**
+   - Check upload logs for failures
+   - Monitor S3 storage costs
+   - Track Knowledge Base sync status
+   - Set up CloudWatch alerts for upload failures
+
+4. **Document Management**
+   - Version control your source documents
+   - Keep a backup of uploaded PDFs
+   - Document the source of each regulatory document
+   - Regularly update outdated documents
+
+### Troubleshooting S3 Upload
+
+**Issue: "No credentials found"**
+```bash
+# Verify credentials are in .env
+grep AWS_ACCESS_KEY_ID .env
+
+# Or set them temporarily
+export AWS_ACCESS_KEY_ID=your_key
+export AWS_SECRET_ACCESS_KEY=your_secret
+```
+
+**Issue: "Bucket does not exist"**
+```bash
+# Create bucket
+aws s3 mb s3://your-bucket-name --region us-east-1
+
+# Verify bucket exists
+aws s3 ls
+```
+
+**Issue: "Access Denied"**
+- Check IAM permissions for S3 PutObject
+- Verify bucket policy allows your IAM user/role
+- Ensure bucket name is correct
+
+**Issue: "KB not finding uploaded documents"**
+- Wait for Bedrock KB sync (5-30 minutes)
+- Check KB data source is pointing to correct S3 prefix
+- Verify KB sync completed without errors in AWS console
+
 ## 📄 License
 
 [Add your license information]
@@ -445,6 +713,7 @@ curl http://localhost:8000/v1/stats \
 For issues or questions:
 - Check LangSmith traces for detailed error information
 - Review application logs
+- [Add support contact information]
 
 ---
 
