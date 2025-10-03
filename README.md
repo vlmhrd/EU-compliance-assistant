@@ -700,20 +700,12 @@ aws s3 ls
 - Check KB data source is pointing to correct S3 prefix
 - Verify KB sync completed without errors in AWS console
 
-## 📄 License
-
-[Add your license information]
-
-## 👥 Contributing
-
-[Add contribution guidelines]
 
 ## 📧 Support
 
 For issues or questions:
 - Check LangSmith traces for detailed error information
 - Review application logs
-- [Add support contact information]
 
 ---
 
