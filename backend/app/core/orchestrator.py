@@ -15,7 +15,7 @@ from app.services.streaming import streaming_service
 from app.services.langsmith_service import langsmith_service
 from app.services.prompt_service import prompt_service
 from app.core.guardrails import apply_guardrails
-from app.core.tools import lookup_statute
+from backend.app.core.eurlex_tool import lookup_statute
 from app.core.error_handler import ValidationError
 from app.config import settings
 
