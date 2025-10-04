@@ -1,6 +1,7 @@
 # app/config.py
 import os
 from typing import Optional
+from click import prompt
 from pydantic import Field
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
@@ -49,6 +50,10 @@ class Settings(BaseSettings):
     LANGCHAIN_ENDPOINT: str = Field(default="https://api.smith.langchain.com", env='LANGCHAIN_ENDPOINT')
     LANGCHAIN_API_KEY: Optional[str] = Field(default=None, env='LANGCHAIN_API_KEY')
     LANGCHAIN_PROJECT: str = Field(default="llm-app-1", env='LANGCHAIN_PROJECT')
+
+    USE_LANGSMITH_PROMPTS: bool = Field(default=True, env='USE_LANGSMITH_PROMPTS')
+    LANGSMITH_PROMPT_NAME: str = Field(default="compliance-prompt", env='LANGSMITH_PROMPT_NAME')
+
 
     class Config:
         env_file = ".env"

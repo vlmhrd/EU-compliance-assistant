@@ -11,6 +11,7 @@ A professional AI-powered application that provides instant guidance on EU regul
 - **Session Management**: Maintains conversation context across multiple interactions
 - **Real-time Streaming**: Provides responsive, token-by-token streaming responses
 - **Observability**: Full request tracing through LangSmith for monitoring and debugging
+- **Prompt engineering**: The application uses a centralized prompt management system integrated with LangSmith Hub for version control and A/B testing.
 
 ## 🏗️ Architecture Overview
 
@@ -21,14 +22,14 @@ A professional AI-powered application that provides instant guidance on EU regul
 │  (Vanilla JS)   │◀─────│  (Python)        │◀─────│  (Nova Pro)     │
 │                 │      │                  │      │                 │
 └─────────────────┘      └──────────────────┘      └─────────────────┘
-                                 │
-                                 │
-                         ┌───────┴────────┐
-                         │                │
-                         │   LangSmith    │
-                         │   (Tracing)    │
-                         │                │
-                         └────────────────┘
+                 │
+                 │
+             ┌───────┴────────┐
+             │                │
+             │   LangSmith    │
+             │   (Tracing)    │
+             │                │
+             └────────────────┘
 ```
 
 ## ✨ Key Features
@@ -41,38 +42,57 @@ A professional AI-powered application that provides instant guidance on EU regul
 - Temperature and token control for response quality
 - Automatic model selection based on AWS region
 
-#### 2. **Knowledge Base (RAG)**
+#### 2. **Prompt Engineering**
+
+**Architecture:**
+```
+User Query
+  ↓
+Check if KB lookup needed (keywords: gdpr, article, requirement, etc.)
+  ↓
+[If needed] → Retrieve relevant documents from Bedrock KB
+  ↓
+Pull prompt from LangSmith Hub (client.pull_prompt())
+  ↓
+Inject KB documents into {context} placeholder
+  ↓
+Send complete prompt to Bedrock Nova Pro
+  ↓
+Return response with citations
+```
+
+#### 3. **Knowledge Base (RAG)**
 - AWS Bedrock Knowledge Base integration for document retrieval
 - Vector search with configurable result counts
 - Citation tracking with source documents
 - Mock KB mode for development without AWS resources
 
-#### 3. **Memory Management**
+#### 4. **Memory Management**
 - LangChain-based conversation memory
 - Buffer window memory (configurable history length)
 - Session persistence with automatic cleanup
 - Multi-user session isolation
 
-#### 4. **Session Management**
+#### 5. **Session Management**
 - Unique session IDs for conversation continuity
 - Session metadata tracking (user, timestamps, message counts)
 - Automatic session expiration (2 hours idle)
 - Session limit enforcement (1000 max sessions)
 
-#### 5. **Observability with LangSmith**
+#### 6. **Observability with LangSmith**
 - Complete request tracing from endpoint to LLM
 - Traces for memory operations (session creation, message storage)
 - KB retrieval and parsing traces
 - Hierarchical trace visualization showing parent-child relationships
 - Performance metrics and timing information
 
-#### 6. **Security & Authentication**
+#### 7. **Security & Authentication**
 - JWT-based authentication
 - Token expiration handling
 - User authorization for session access
 - Environment-based configuration
 
-#### 7. **API Endpoints**
+#### 8. **API Endpoints**
 - `POST /auth/login` - User authentication
 - `GET /auth/me` - Current user information
 - `POST /v1/chat` - Chat with optional streaming
@@ -135,114 +155,113 @@ A professional AI-powered application that provides instant guidance on EU regul
 ### Backend Setup
 
 1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd llm_app_1/backend
-```
+  ```bash
+  git clone <repository-url>
+  cd llm_app_1/backend
+  ```
 
 2. **Create virtual environment**
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+  ```bash
+  python -m venv venv
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
+  ```
 
 3. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
+  ```bash
+  pip install -r requirements.txt
+  ```
 
 4. **Configure environment variables**
 
-Create a `.env` file in the backend directory:
+  Create a `.env` file in the backend directory:
 
-```bash
-# AWS Configuration
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
+  ```bash
+  # AWS Configuration
+  AWS_REGION=us-east-1
+  AWS_ACCESS_KEY_ID=your_access_key
+  AWS_SECRET_ACCESS_KEY=your_secret_key
 
-# Bedrock Configuration
-BEDROCK_KNOWLEDGE_BASE_ID=your_kb_id_or_leave_empty_for_mock
-BEDROCK_GENERATION_MODEL=us.amazon.nova-pro-v1:0
+  # Bedrock Configuration
+  BEDROCK_KNOWLEDGE_BASE_ID=your_kb_id_or_leave_empty_for_mock
+  BEDROCK_GENERATION_MODEL=us.amazon.nova-pro-v1:0
 
-# Authentication
-SECRET_KEY=your_secret_key_here
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+  # Authentication
+  SECRET_KEY=your_secret_key_here
+  ADMIN_USERNAME=admin
+  ADMIN_PASSWORD=admin123
 
-# LangSmith Configuration (lowercase 'true'!)
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_API_KEY=your_langsmith_api_key
-LANGCHAIN_PROJECT=llm_app_1
-LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+  # LangSmith Configuration (lowercase 'true'!)
+  LANGCHAIN_TRACING_V2=true
+  LANGCHAIN_API_KEY=your_langsmith_api_key
+  LANGCHAIN_PROJECT=llm_app_1
+  LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 
-# Application
-DEBUG=false
-LOG_LEVEL=INFO
-```
+  # Application
+  DEBUG=false
+  LOG_LEVEL=INFO
+  ```
 
 5. **Run the application**
-```bash
-cd app
-python main.py
-```
+  ```bash
+  cd app
+  python main.py
+  ```
 
-The backend will start on `http://localhost:8000`
+  The backend will start on `http://localhost:8000`
 
 ### Frontend Setup
 
 1. **Navigate to frontend directory**
-```bash
-cd frontend
-```
+  ```bash
+  cd frontend
+  ```
 
 2. **Configure API endpoint**
 
-Edit `index.html` and update the API base URL if needed:
+  Edit `index.html` and update the API base URL if needed:
 
-```javascript
-const CONFIG = {
+  ```javascript
+  const CONFIG = {
     API_BASE: 'http://localhost:8000',  // Change if backend runs elsewhere
     // ... other config
-};
-```
+  };
+  ```
 
 3. **Serve the frontend**
 
-Option A - Python HTTP server:
-```bash
-python -m http.server 8080
-```
-
-Option B - Node.js http-server:
-```bash
-npx http-server -p 8080
-```
-
-Option C - VS Code Live Server extension
+  - **Option A** - Python HTTP server:
+    ```bash
+    python -m http.server 8080
+    ```
+  - **Option B** - Node.js http-server:
+    ```bash
+    npx http-server -p 8080
+    ```
+  - **Option C** - VS Code Live Server extension
 
 4. **Access the application**
 
-Open your browser to `http://localhost:8080`
+  Open your browser to `http://localhost:8080`
 
 ## 📊 LangSmith Tracing
 
 The application provides comprehensive tracing through LangSmith:
 
 ### Trace Hierarchy
+
 ```
 chat_endpoint (API route)
 └── chat_pipeline (orchestrator)
-    ├── memory_get_or_create_session
-    │   └── memory_create_memory
-    ├── memory_get_variables
-    ├── generate_llm_response
-    │   ├── bedrock_stream_response (streaming)
-    │   └── kb_retrieve_documents (if KB lookup needed)
-    │       ├── kb_parse_retrieval_results
-    │       └── kb_parse_generation_result
-    ├── enhance_with_kb_lookup (if applicable)
-    └── memory_add_message
+  ├── memory_get_or_create_session
+  │   └── memory_create_memory
+  ├── memory_get_variables
+  ├── generate_llm_response
+  │   ├── bedrock_stream_response (streaming)
+  │   └── kb_retrieve_documents (if KB lookup needed)
+  │       ├── kb_parse_retrieval_results
+  │       └── kb_parse_generation_result
+  ├── enhance_with_kb_lookup (if applicable)
+  └── memory_add_message
 ```
 
 ### Viewing Traces
@@ -257,20 +276,17 @@ chat_endpoint (API route)
 If traces aren't appearing:
 
 1. **Verify environment variable is lowercase:**
-   ```bash
-   LANGCHAIN_TRACING_V2=true  # NOT "True" or "TRUE"
-   ```
-
+  ```bash
+  LANGCHAIN_TRACING_V2=true  # NOT "True" or "TRUE"
+  ```
 2. **Check API key permissions:**
-   - Must be a "Personal" key with write permissions
-   - Created in the correct workspace
-
+  - Must be a "Personal" key with write permissions
+  - Created in the correct workspace
 3. **Clear browser cache** if you recently changed keys
-
 4. **Check logs** for initialization messages:
-   ```
-   LangSmith monitoring enabled | Project: llm_app_1
-   ```
+  ```
+  LangSmith monitoring enabled | Project: llm_app_1
+  ```
 
 ## 🔧 Configuration
 
@@ -300,12 +316,12 @@ temperature: 0.3
 
 ```javascript
 const CONFIG = {
-    API_BASE: 'http://localhost:8000',
-    UI: {
-        MAX_MESSAGE_LENGTH: 5000,
-        TEXTAREA_MAX_HEIGHT: 120,
-        AUTO_SCROLL_THRESHOLD: 100
-    }
+  API_BASE: 'http://localhost:8000',
+  UI: {
+    MAX_MESSAGE_LENGTH: 5000,
+    TEXTAREA_MAX_HEIGHT: 120,
+    AUTO_SCROLL_THRESHOLD: 100
+  }
 };
 ```
 
@@ -338,12 +354,13 @@ llm_app_1/
 │   ├── .env                          # Environment variables
 │   └── requirements.txt              # Python dependencies
 └── frontend/
-    └── index.html                    # Single-page application
+  └── index.html                    # Single-page application
 ```
 
 ## 🧪 Testing
 
 ### Test Authentication
+
 ```bash
 curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
@@ -351,6 +368,7 @@ curl -X POST http://localhost:8000/auth/login \
 ```
 
 ### Test Chat (Non-streaming)
+
 ```bash
 curl -X POST http://localhost:8000/v1/chat \
   -H "Content-Type: application/json" \
@@ -359,6 +377,7 @@ curl -X POST http://localhost:8000/v1/chat \
 ```
 
 ### Test Chat (Streaming)
+
 ```bash
 curl -X POST "http://localhost:8000/v1/chat?stream=true" \
   -H "Content-Type: application/json" \
@@ -367,7 +386,9 @@ curl -X POST "http://localhost:8000/v1/chat?stream=true" \
 ```
 
 ### Test Session Management
+
 Use the `/v1/test-sessions` endpoint to verify session continuity:
+
 ```bash
 curl http://localhost:8000/v1/test-sessions \
   -H "Authorization: Bearer YOUR_TOKEN"
@@ -376,18 +397,21 @@ curl http://localhost:8000/v1/test-sessions \
 ## 🔍 Monitoring & Debugging
 
 ### Application Logs
+
 - Uses `loguru` for structured logging
 - Log levels: DEBUG, INFO, WARNING, ERROR
 - Request tracking with `request_id` and `user_id`
 - Session tracking with `session_id`
 
 ### LangSmith Dashboard
+
 - Real-time trace visualization
 - Performance metrics per operation
 - Input/output inspection
 - Error tracking and debugging
 
 ### Health Checks
+
 ```bash
 # Check KB health
 curl http://localhost:8000/v1/kb/health \
@@ -401,33 +425,41 @@ curl http://localhost:8000/v1/stats \
 ## 🚨 Common Issues
 
 ### Issue: Traces not appearing in LangSmith
+
 **Solution:** Ensure `LANGCHAIN_TRACING_V2=true` (lowercase), valid API key, and restart the app
 
 ### Issue: "Session not found" errors
+
 **Solution:** Session expired (2hr timeout) or was cleared. Start a new conversation.
 
 ### Issue: Mock KB responses instead of real data
+
 **Solution:** Configure `BEDROCK_KNOWLEDGE_BASE_ID` with your actual KB ID
 
 ### Issue: 403 Forbidden from AWS
+
 **Solution:** Check AWS credentials, region, and Bedrock model access permissions
 
 ### Issue: Frontend can't connect to backend
+
 **Solution:** Verify CORS settings and API_BASE URL in frontend config
 
 ## 📝 Development Notes
 
 ### Adding New Endpoints
+
 1. Create route in `routes_chat.py` or create new route file
 2. Add `@langsmith_service.trace()` decorator for tracing
 3. Update frontend `CONFIG.ENDPOINTS` if needed
 
 ### Modifying LLM Behavior
+
 - Edit system prompts in `orchestrator.py` and `streaming.py`
 - Adjust temperature/maxTokens in the request body
 - Modify KB lookup triggers in `_should_use_kb_lookup()`
 
 ### Adding New Memory Types
+
 - Extend `_create_memory()` in `memory_service.py`
 - Use LangChain memory classes
 - Add tracing decorators for observability
@@ -439,6 +471,7 @@ The application includes AWS Bedrock Guardrails for content safety and policy co
 ### Configuration
 
 Add to your `.env` file:
+
 ```bash
 BEDROCK_GUARDRAIL_ID=your_guardrail_id_here
 BEDROCK_GUARDRAIL_VERSION=DRAFT  # or specific version number
@@ -458,10 +491,10 @@ BEDROCK_GUARDRAIL_VERSION=DRAFT  # or specific version number
 from app.core.guardrails import apply_guardrails
 
 safe_response = apply_guardrails(
-    answer=llm_response,
-    user_input=user_query,
-    request_id=request_id,
-    user_id=user_id
+  answer=llm_response,
+  user_input=user_query,
+  request_id=request_id,
+  user_id=user_id
 )
 ```
 
@@ -489,6 +522,7 @@ Comprehensive error handling throughout the application with proper logging and 
 ### Error Types
 
 #### 1. **HTTP Exceptions** (400-599)
+
 ```python
 # Custom error classes
 class ValidationError(Exception): pass
@@ -498,14 +532,16 @@ class RateLimitError(Exception): pass
 ```
 
 #### 2. **Request Validation Errors**
+
 Automatic validation using Pydantic models with detailed error messages:
+
 ```json
 {
   "error": {
-    "message": "Validation error",
-    "type": "validation_error",
-    "details": [...],
-    "request_id": "abc-123"
+  "message": "Validation error",
+  "type": "validation_error",
+  "details": [...],
+  "request_id": "abc-123"
   }
 }
 ```
@@ -524,13 +560,14 @@ Automatic validation using Pydantic models with detailed error messages:
 ### Error Response Format
 
 All errors return consistent JSON format:
+
 ```json
 {
   "error": {
-    "message": "Human-readable error message",
-    "type": "error_type",
-    "status_code": 500,
-    "request_id": "unique-request-id"
+  "message": "Human-readable error message",
+  "type": "error_type",
+  "status_code": 500,
+  "request_id": "unique-request-id"
   }
 }
 ```
@@ -546,6 +583,7 @@ Every request is tracked with:
 - Query parameters
 
 Example log output:
+
 ```
 2025-01-15 10:30:45 | INFO | request_id=abc123 user_id=admin | 
   Request started: POST /v1/chat
@@ -566,9 +604,9 @@ The frontend gracefully handles:
 
 1. **Check request_id** in error response
 2. **Search logs** for that request_id:
-   ```bash
-   grep "abc123" logs/app.log
-   ```
+  ```bash
+  grep "abc123" logs/app.log
+  ```
 3. **View in LangSmith** for detailed trace of what failed
 4. **Check error context** in logged JSON
 
@@ -579,6 +617,7 @@ The application includes utilities for storing documents in AWS S3 for the Knowl
 ### S3 Configuration
 
 Add to your `.env` file:
+
 ```bash
 S3_BUCKET_NAME=your-bucket-name
 S3_PREFIX=documents/
@@ -600,28 +639,28 @@ python pdf_ingest.py
 ### How It Works
 
 1. **Document Preparation**
-   - Place PDF files in the configured folder (default: `./pdfs`)
-   - Script validates file existence and format
+  - Place PDF files in the configured folder (default: `./pdfs`)
+  - Script validates file existence and format
 
 2. **Upload Process**
-   ```python
-   # The script automatically:
-   - Connects to S3 using credentials
-   - Scans for PDF files
-   - Uploads with proper metadata
-   - Tracks success/failure
-   ```
+  ```python
+  # The script automatically:
+  # - Connects to S3 using credentials
+  # - Scans for PDF files
+  # - Uploads with proper metadata
+  # - Tracks success/failure
+  ```
 
 3. **Metadata Tracking**
-   Each uploaded file includes:
-   - Original filename
-   - Upload timestamp
-   - Content type (application/pdf)
+  Each uploaded file includes:
+  - Original filename
+  - Upload timestamp
+  - Content type (application/pdf)
 
 4. **Knowledge Base Sync**
-   - After upload, AWS Bedrock KB automatically indexes new documents
-   - Sync can take 5-30 minutes depending on document size
-   - Monitor sync status in AWS Bedrock console
+  - After upload, AWS Bedrock KB automatically indexes new documents
+  - Sync can take 5-30 minutes depending on document size
+  - Monitor sync status in AWS Bedrock console
 
 ### Manual Upload Alternative
 
@@ -638,40 +677,41 @@ aws s3 cp ./pdfs/document.pdf \
 ```
 your-bucket-name/
 └── documents/              # Configured by S3_PREFIX
-    ├── gdpr-guide.pdf
-    ├── csrd-requirements.pdf
-    ├── eu-taxonomy.pdf
-    └── ...
+  ├── gdpr-guide.pdf
+  ├── csrd-requirements.pdf
+  ├── eu-taxonomy.pdf
+  └── ...
 ```
 
 ### Best Practices
 
 1. **Organize Documents**
-   - Use clear, descriptive filenames
-   - Consider subfolders for different regulation types
-   - Keep original source documentation
+  - Use clear, descriptive filenames
+  - Consider subfolders for different regulation types
+  - Keep original source documentation
 
 2. **Security**
-   - Use IAM roles with minimum required permissions
-   - Enable S3 bucket encryption
-   - Configure bucket policies appropriately
-   - Never commit AWS credentials to Git
+  - Use IAM roles with minimum required permissions
+  - Enable S3 bucket encryption
+  - Configure bucket policies appropriately
+  - Never commit AWS credentials to Git
 
 3. **Monitoring**
-   - Check upload logs for failures
-   - Monitor S3 storage costs
-   - Track Knowledge Base sync status
-   - Set up CloudWatch alerts for upload failures
+  - Check upload logs for failures
+  - Monitor S3 storage costs
+  - Track Knowledge Base sync status
+  - Set up CloudWatch alerts for upload failures
 
 4. **Document Management**
-   - Version control your source documents
-   - Keep a backup of uploaded PDFs
-   - Document the source of each regulatory document
-   - Regularly update outdated documents
+  - Version control your source documents
+  - Keep a backup of uploaded PDFs
+  - Document the source of each regulatory document
+  - Regularly update outdated documents
 
 ### Troubleshooting S3 Upload
 
 **Issue: "No credentials found"**
+
 ```bash
 # Verify credentials are in .env
 grep AWS_ACCESS_KEY_ID .env
@@ -682,6 +722,7 @@ export AWS_SECRET_ACCESS_KEY=your_secret
 ```
 
 **Issue: "Bucket does not exist"**
+
 ```bash
 # Create bucket
 aws s3 mb s3://your-bucket-name --region us-east-1
@@ -699,7 +740,6 @@ aws s3 ls
 - Wait for Bedrock KB sync (5-30 minutes)
 - Check KB data source is pointing to correct S3 prefix
 - Verify KB sync completed without errors in AWS console
-
 
 ## 📧 Support
 
